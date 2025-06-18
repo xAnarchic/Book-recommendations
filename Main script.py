@@ -62,12 +62,10 @@ def database_collection(response):
 
 
 def user_data_collection(response):
-
-
+    print(user_response.status_code)
 
 
 user_response = requests.get('https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added')
-print(user_response.status_code)
 user_data_collection(user_response)
 
 
