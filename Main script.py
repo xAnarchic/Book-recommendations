@@ -1,6 +1,7 @@
+import re
 import requests
 import pandas as pd
-from bs4 import BeautifulSoup as bs
+from bs4 import BeautifulSoup
 
 
 def database_collection(response):
@@ -56,16 +57,45 @@ def database_collection(response):
     return print(df.to_string())
 
 
-
-# db_response = requests.get('https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,subject&subject=young+adult&limit=10&language=eng')
-# database_collection(db_response)
+db_response = requests.get('https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,subject&subject=young+adult&limit=10&language=eng')
+database_collection(db_response)
 
 
 def user_data_collection(response):
     print(user_response.status_code)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    reviews = soup.find_all('tr', class_ = 'bookalike review')
+
+    titles = []
+    authors = []
+    released = []
 
 
-user_response = requests.get('https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added')
+    for review in reviews:
+        title_tag = review.find('td', class_ = 'field title')
+        title_text = title_tag.find('div', class_ = 'value').get_text().strip()
+        title = re.sub('\n        ', ' ', title_text)
+        titles.append(title)
+
+        author_tag = review.find('td', class_ = 'field author')
+        author_text = author_tag.find('div', class_ = 'value').get_text().strip()
+        author_fullname = re.sub('[\n*,]', '', author_text).split()
+        author = author_fullname[1] + ' ' + author_fullname[0]
+        authors.append(author)
+
+        released_date_tag = review.find('td', class_ = 'field title')
+        released_text = released_date_tag.find('div', class_='value').get_text().strip()
+
+
+
+
+    return print(released)
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+}
+
+user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
 user_data_collection(user_response)
 
 
