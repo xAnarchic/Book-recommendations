@@ -57,11 +57,14 @@ def database_collection(response):
     return print(df.to_string())
 
 
-db_response = requests.get('https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,subject&subject=young+adult&limit=10&language=eng')
+db_response = requests.get('https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=10&language=eng')
 database_collection(db_response)
 
 
 def user_data_collection(response):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     print(user_response.status_code)
     soup = BeautifulSoup(response.text, 'html.parser')
     reviews = soup.find_all('tr', class_ = 'bookalike review')
@@ -69,12 +72,13 @@ def user_data_collection(response):
     titles = []
     authors = []
     released = []
-
+    genres = []
 
     for review in reviews:
         title_tag = review.find('td', class_ = 'field title')
         title_text = title_tag.find('div', class_ = 'value').get_text().strip()
-        title = re.sub('\n        ', ' ', title_text)
+        title_strip = re.sub('\n        ', ' ', title_text)
+        title = re.sub(r'\s?\([a-zA-Z&,#0-9\s]+[)]', '', title_strip)
         titles.append(title)
 
         author_tag = review.find('td', class_ = 'field author')
@@ -83,13 +87,29 @@ def user_data_collection(response):
         author = author_fullname[1] + ' ' + author_fullname[0]
         authors.append(author)
 
-        released_date_tag = review.find('td', class_ = 'field title')
-        released_text = released_date_tag.find('div', class_='value').get_text().strip()
+        # released_date_tag = review.find('td', class_ = 'field title')
+        # released_text = released_date_tag.find('div', class_='value').get_text().strip()
+        # released.append(released_text)
+
+        book_link = title_tag.find('a', href = True)['href']
+        book_response = requests.get(url = 'https://www.goodreads.com/' + book_link, headers = headers)
+        book_soup = BeautifulSoup(book_response.text, 'html.parser')
+        book_genres = book_soup.find_all('span', class_ = 'BookPageMetadataSection__genreButton')
+        genre_list = []
+        for x in book_genres:
+            all_book_genres = x.find_all('span', class_ = 'Button__labelItem')
+            for single_genre in all_book_genres:
+                genre = single_genre.get_text()
+                genre_list.append(genre)
+        all_genres = ','.join(genre_list)
+        genres.append(all_genres)
 
 
 
 
-    return print(released)
+
+
+    return print(genres, titles, authors)
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
