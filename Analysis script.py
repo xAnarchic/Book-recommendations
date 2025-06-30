@@ -42,6 +42,27 @@ def exploratory_data_analysis(merged_dataframe):
     authors_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
     plt.show()
 
+
+    released_df = merged_dataframe['released'].value_counts().to_frame()
+    released_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+    plt.show()
+
+
+    subjects_list = merged_dataframe['title', 'subjects'].values
+    print(subjects_list)
+
+
+    #create a plot for the distribution of publish dates, making a note for the lowest book year recorded
+    #if the year is recent, with a large enough sample size, may suggest an interest in recent books - otherwise, the user may not care about when the book was released (so wouldn't filter the recommendations)
+    #or could suggest that most of their read books are within an X year range, or in X year, and maybe they would want to filter results down to that year
+
+
+
+    #create a plot for the different subjects/ genres being read, look for any distinctly different ones - esp the most popular ones
+    #could recommend the user to search for a certain genre/subject to be recommended based on their book profile's most popular subjects/ genres
+
+
+
     return
 
 
@@ -49,7 +70,7 @@ if __name__ == '__main__':
 
 
 
-    url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added'
+    url = 'https://www.goodreads.com/review/list/174990394?shelf=read'
     #https://www.goodreads.com/review/list/174990394?shelf=read
     #https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added
     links = [url]

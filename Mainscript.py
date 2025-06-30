@@ -62,80 +62,83 @@ def user_data_collection(url):
     }
     user_response = requests.get(url = url, headers = headers)
 
-    print(user_response.status_code)
-    soup = BeautifulSoup(user_response.text, 'html.parser')
+    if user_response.status_code == 200:
 
-    reviews = soup.find_all('tr', class_ = 'bookalike review')
+        soup = BeautifulSoup(user_response.text, 'html.parser')
 
-    titles = []
-    authors = []
-    released = []
-    genres = []
-    ratings = []
+        reviews = soup.find_all('tr', class_ = 'bookalike review')
 
-    for review in reviews:
-        title_tag = review.find('td', class_ = 'field title')
-        title_text = title_tag.find('div', class_ = 'value').get_text().strip()
-        title_strip = re.sub('\n        ', ' ', title_text)
-        title = re.sub(r'\s?\([a-zA-Z&,#0-9\s]+[)]', '', title_strip)
-        titles.append(title)
+        titles = []
+        authors = []
+        released = []
+        genres = []
+        ratings = []
 
-        author_tag = review.find('td', class_ = 'field author')
-        author_text = author_tag.find('div', class_ = 'value').get_text().strip()
-        author_fullname = re.sub('[\n*,]', '', author_text).split()
-        author = author_fullname[1] + ' ' + author_fullname[0]
-        authors.append(author)
+        for review in reviews:
+            title_tag = review.find('td', class_ = 'field title')
+            title_text = title_tag.find('div', class_ = 'value').get_text().strip()
+            title_strip = re.sub('\n        ', ' ', title_text)
+            title = re.sub(r'\s?\([a-zA-Z&,#0-9\s]+[)]', '', title_strip)
+            titles.append(title)
 
-        rating_tag = review.find('td', class_ = 'field rating')
-        rating_text = rating_tag.find('span', attrs = {'class' : 'staticStars, ', 'class' : 'notranslate'}).get('title')
+            author_tag = review.find('td', class_ = 'field author')
+            author_text = author_tag.find('div', class_ = 'value').get_text().strip()
+            author_fullname = re.sub('[\n*,]', '', author_text).split()
+            author = author_fullname[1] + ' ' + author_fullname[0]
+            authors.append(author)
 
-        rating_text_vals = {
-            'it was amazing' : 5,
-            'really liked it' : 4,
-            'liked it' : 3,
-            'it was ok' : 2,
-            'did not like it' : 1
+            rating_tag = review.find('td', class_ = 'field rating')
+            rating_text = rating_tag.find('span', attrs = {'class' : 'staticStars, ', 'class' : 'notranslate'}).get('title')
+
+            rating_text_vals = {
+                'it was amazing' : 5,
+                'really liked it' : 4,
+                'liked it' : 3,
+                'it was ok' : 2,
+                'did not like it' : 1
+            }
+
+            if rating_text in rating_text_vals:
+                rating_num = rating_text_vals[rating_text]
+                ratings.append(rating_num)
+            else:
+                ratings.append('N/A')
+
+
+            book_link = title_tag.find('a', href = True).get('href')
+            book_response = requests.get(url = 'https://www.goodreads.com/' + book_link, headers = headers)
+            book_soup = BeautifulSoup(book_response.text, 'html.parser')
+
+            book_genres = book_soup.find_all('span', class_ = 'BookPageMetadataSection__genreButton')
+            genre_list = []
+            for x in book_genres:
+                all_book_genres = x.find_all('span', class_ = 'Button__labelItem')
+                for single_genre in all_book_genres:
+                    genre = single_genre.get_text()
+                    genre_list.append(genre)
+            all_genres = ','.join(genre_list)
+            genres.append(all_genres)
+            try:
+                book_released = book_soup.find('p', attrs = {'data-testid' : 'publicationInfo'}).get_text()
+                released.append(book_released[-4:])
+            except AttributeError:
+                book_released = 'N/A'
+                released.append(book_released)
+
+        user_books = {
+            'title': titles,
+            'author': authors,
+            'released': released,
+            'avg_rating': ratings,
+            'subjects': genres
         }
 
-        if rating_text in rating_text_vals:
-            rating_num = rating_text_vals[rating_text]
-            ratings.append(rating_num)
-        else:
-            ratings.append('N/A')
+        df = pd.DataFrame(user_books)
 
+        return df
 
-        book_link = title_tag.find('a', href = True).get('href')
-        book_response = requests.get(url = 'https://www.goodreads.com/' + book_link, headers = headers)
-        book_soup = BeautifulSoup(book_response.text, 'html.parser')
-
-        book_genres = book_soup.find_all('span', class_ = 'BookPageMetadataSection__genreButton')
-        genre_list = []
-        for x in book_genres:
-            all_book_genres = x.find_all('span', class_ = 'Button__labelItem')
-            for single_genre in all_book_genres:
-                genre = single_genre.get_text()
-                genre_list.append(genre)
-        all_genres = ','.join(genre_list)
-        genres.append(all_genres)
-        try:
-            book_released = book_soup.find('p', attrs = {'data-testid' : 'publicationInfo'}).get_text()
-            released.append(book_released[-4:])
-        except AttributeError:
-            book_released = 'N/A'
-            released.append(book_released)
-
-    user_books = {
-        'title': titles,
-        'author': authors,
-        'released': released,
-        'avg_rating': ratings,
-        'subjects': genres
-    }
-
-    df = pd.DataFrame(user_books)
-
-
-    return df
+    else:
+        print(f'An error occurred while trying to get this page\'s information: {url}')
 
 def url_generator(url, links):
 
