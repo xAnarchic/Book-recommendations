@@ -2,6 +2,7 @@ from Mainscript import database_collection, user_data_collection, url_generator
 from multiprocessing import Pool
 from pandas import DataFrame as df
 import matplotlib.pyplot as plt
+import re
 
 #function that accepts a list of dataframes and merges them
 
@@ -48,8 +49,11 @@ def exploratory_data_analysis(merged_dataframe):
     plt.show()
 
 
-    subjects_list = merged_dataframe['title', 'subjects'].values
-    print(subjects_list)
+    subjects_list = merged_dataframe['subjects'].values.tolist()
+    cleaned_nested_lists = re.sub('\'', '', str(subjects_list)[1:-1])
+    list_separation = re.sub(', ', ',', cleaned_nested_lists)
+    individual_subjects = list_separation.split(',')
+
 
 
     #create a plot for the distribution of publish dates, making a note for the lowest book year recorded
