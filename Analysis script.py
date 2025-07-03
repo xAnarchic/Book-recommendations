@@ -1,6 +1,6 @@
 from Mainscript import database_collection, user_data_collection, url_generator
 from multiprocessing import Pool
-from pandas import DataFrame as df
+import pandas as pd
 import matplotlib.pyplot as plt
 import re
 
@@ -44,16 +44,22 @@ def exploratory_data_analysis(merged_dataframe):
     plt.show()
 
 
-    released_df = merged_dataframe['released'].value_counts().to_frame()
+
+    released_df = merged_dataframe['released'].value_counts()[:10].to_frame()
     released_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
     plt.show()
 
 
     subjects_list = merged_dataframe['subjects'].values.tolist()
-    cleaned_nested_lists = re.sub('\'', '', str(subjects_list)[1:-1])
+    cleaned_nested_lists = re.sub('\'', '', str(subjects_list)[1:-1])   #remove brackets using index, remove quotation marks too
     list_separation = re.sub(', ', ',', cleaned_nested_lists)
     individual_subjects = list_separation.split(',')
+    subjects_df = pd.Series(individual_subjects).value_counts()[:10].to_frame()
+    subjects_df.plot(kind='barh', rot = 0, figsize = (16,10))
+    plt.show()
 
+    combined_book_data = (merged_dataframe['title'] + ' ' + merged_dataframe['author'] + ' ' + merged_dataframe['released'] + ' ' + merged_dataframe['subjects']).to_frame().to_string()
+    print(combined_book_data)
 
 
     #create a plot for the distribution of publish dates, making a note for the lowest book year recorded
