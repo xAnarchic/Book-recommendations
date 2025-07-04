@@ -38,7 +38,7 @@ def database_collection(response):
 
         titles.append(book_title)
         authors.append(author_name)
-        released_dates.append(date_published)
+        released_dates.append(str(date_published))
         ratings.append(round(ratings_average,2))
         subjects.append(subject)
 
@@ -54,7 +54,9 @@ def database_collection(response):
 
     df = pd.DataFrame(all_books)
 
-    return print(df.to_string())
+    combined_book_data = (df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects']).to_frame()
+
+    return combined_book_data
 
 def user_data_collection(url):
     headers = {
@@ -165,8 +167,13 @@ if __name__ == '__main__':
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
-    user_data_collection(user_response)
+    # user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
+    # user_data_collection(user_response)
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=10&language=eng', headers = headers)
+    database_combined_book_data = database_collection(database_response)
+    print(database_combined_book_data.to_string())
+
+
     pass
 
 
