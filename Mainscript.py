@@ -173,6 +173,11 @@ if __name__ == '__main__':
     database_combined_book_data = database_collection(database_response)
     print(database_combined_book_data.to_string())
 
+    #Idea will be to: condense each user's favourite books into a single array, calculate its consine similarity with each book of the database, then grab the top highest books in terms of that value
+    #Potential tha above yields multiple books with a cosine similarity of 1, simply becasue the user profile array is just so long -> will then try out the genre filters -> Although it'd have to be from an author
+    #the user has highly rated before for it to be a perfect 1
+    #Can then give user filtering options, ie: fantasy/ contemporary genres (compare against the same type of book in the database), consider books read by the user in the last X years - in other words, filter
+    #the books within the user profile to create a different vector that is subsequently used to determine a cosine similarity with (the vectors) of books within the database
 
     pass
 
