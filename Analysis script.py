@@ -3,6 +3,10 @@ from multiprocessing import Pool
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+import requests
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
+
 
 #function that accepts a list of dataframes and merges them
 
@@ -58,8 +62,10 @@ def exploratory_data_analysis(merged_dataframe):
     subjects_df.plot(kind='barh', rot = 0, figsize = (16,10))
     plt.show()
 
-    combined_book_data = (merged_dataframe['title'] + ' ' + merged_dataframe['author'] + ' ' + merged_dataframe['released'] + ' ' + merged_dataframe['subjects']).to_frame().to_string()
-    print(combined_book_data)
+    combined_book_data = (merged_dataframe['title'] + ' ' + merged_dataframe['author'] + ' ' + merged_dataframe['released'] + ' ' + merged_dataframe['subjects']).values.tolist()
+    cleaned_nested_lists1 = re.sub('\'', '', str(combined_book_data)[1:-1])  # remove brackets using index, remove quotation marks too
+    list_separation1 = re.sub(', ', ' ', cleaned_nested_lists1)
+    list_separation2 = re.sub(',', ' ', list_separation1)
 
 
     #create a plot for the distribution of publish dates, making a note for the lowest book year recorded
@@ -73,14 +79,14 @@ def exploratory_data_analysis(merged_dataframe):
 
 
 
-    return
+    return list_separation2
 
 
 if __name__ == '__main__':
 
 
 
-    url = 'https://www.goodreads.com/review/list/174990394?shelf=read'
+    url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added'
     #https://www.goodreads.com/review/list/174990394?shelf=read
     #https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added
     links = [url]
@@ -95,9 +101,38 @@ if __name__ == '__main__':
 
     output_dataframe = dataframe_filtering(all_page_data)
     upper_ratings_dataframe = output_dataframe['upper_merged']
-    exploratory_data_analysis(upper_ratings_dataframe)
+    user_combination = exploratory_data_analysis(upper_ratings_dataframe)
+    print(user_combination)
 
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    # user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
+    # user_data_collection(user_response)
+    #url='https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=100&language=eng',
 
+    database_response = requests.get(
+        url='https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
+        headers=headers)
+    database_combined_book_data = database_collection(database_response)
+    database_combined_book_data.loc[-1, 'combined_book_data'] = user_combination
+    print(database_combined_book_data['combined_book_data'].to_string())
+    #combined_book_series = database_combined_book_data['combined_book_data']
+
+    # print(database_combined_book_data)
+    # print(database_combined_book_data['combined_book_data'])
+
+    vectoriser = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectoriser.fit_transform(database_combined_book_data['combined_book_data'])
+    # tfidf_matrix_user = vectoriser.fit_transform(user_profile)
+
+    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+
+    #print(cosine_sim)  # The 3rd item of each inner list is the similarity score each book's details shares with the user's profile
+
+    sim_list = list(enumerate(cosine_sim[-1]))
+    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)
+    print(sim_scores)
 
 
 

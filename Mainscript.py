@@ -29,7 +29,7 @@ def database_collection(response):
 
         date_published = response.json()['docs'][num]['first_publish_year']
 
-        ratings_average = response.json()['docs'][num]['ratings_average']
+        #ratings_average = response.json()['docs'][num]['ratings_average']
 
         if len(response.json()['docs'][num]['subject']) == 1:
             subject = response.json()['docs'][num]['subject'][0]
@@ -39,7 +39,7 @@ def database_collection(response):
         titles.append(book_title)
         authors.append(author_name)
         released_dates.append(str(date_published))
-        ratings.append(round(ratings_average,2))
+        #ratings.append(round(ratings_average,2))
         subjects.append(subject)
 
 
@@ -47,16 +47,18 @@ def database_collection(response):
          'title' : titles,
          'author' : authors,
          'released' : released_dates,
-         'avg_rating' : ratings,
+         #'avg_rating' : ratings,
          'subjects' : subjects
         }
 
 
     df = pd.DataFrame(all_books)
 
-    combined_book_data = (df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects']).to_frame()
+    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects']
+    # df.loc[-1, 'combined_book_data'] = 'checking check'
 
-    return combined_book_data
+
+    return df
 
 def user_data_collection(url):
     headers = {
@@ -169,9 +171,9 @@ if __name__ == '__main__':
     }
     # user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
     # user_data_collection(user_response)
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=10&language=eng', headers = headers)
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&language=eng', headers = headers)
     database_combined_book_data = database_collection(database_response)
-    print(database_combined_book_data.to_string())
+    print(database_combined_book_data)
 
     #Idea will be to: condense each user's favourite books into a single array, calculate its consine similarity with each book of the database, then grab the top highest books in terms of that value
     #Potential tha above yields multiple books with a cosine similarity of 1, simply becasue the user profile array is just so long -> will then try out the genre filters -> Although it'd have to be from an author
