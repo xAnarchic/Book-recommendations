@@ -43,24 +43,24 @@ def dataframe_filtering(dataframes):
 
 def exploratory_data_analysis(merged_dataframe):
 
-    authors_df = merged_dataframe['author'].value_counts()[:10].to_frame()
-    authors_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-    plt.show()
-
-
-
-    released_df = merged_dataframe['released'].value_counts()[:10].to_frame()
-    released_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-    plt.show()
-
-
-    subjects_list = merged_dataframe['subjects'].values.tolist()
-    cleaned_nested_lists = re.sub('\'', '', str(subjects_list)[1:-1])   #remove brackets using index, remove quotation marks too
-    list_separation = re.sub(', ', ',', cleaned_nested_lists)
-    individual_subjects = list_separation.split(',')
-    subjects_df = pd.Series(individual_subjects).value_counts()[:10].to_frame()
-    subjects_df.plot(kind='barh', rot = 0, figsize = (16,10))
-    plt.show()
+    # authors_df = merged_dataframe['author'].value_counts()[:10].to_frame()
+    # authors_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+    # plt.show()
+    #
+    #
+    #
+    # released_df = merged_dataframe['released'].value_counts()[:10].to_frame()
+    # released_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+    # plt.show()
+    #
+    #
+    # subjects_list = merged_dataframe['subjects'].values.tolist()
+    # cleaned_nested_lists = re.sub('\'', '', str(subjects_list)[1:-1])   #remove brackets using index, remove quotation marks too
+    # list_separation = re.sub(', ', ',', cleaned_nested_lists)
+    # individual_subjects = list_separation.split(',')
+    # subjects_df = pd.Series(individual_subjects).value_counts()[:10].to_frame()
+    # subjects_df.plot(kind='barh', rot = 0, figsize = (16,10))
+    # plt.show()
 
     combined_book_data = (merged_dataframe['title'] + ' ' + merged_dataframe['author'] + ' ' + merged_dataframe['released'] + ' ' + merged_dataframe['subjects']).values.tolist()
     cleaned_nested_lists1 = re.sub('\'', '', str(combined_book_data)[1:-1])  # remove brackets using index, remove quotation marks too
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
 
 
-    url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added'
+    url = 'https://www.goodreads.com/review/list/174990394?shelf=read'
     #https://www.goodreads.com/review/list/174990394?shelf=read
     #https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added
     links = [url]
@@ -131,7 +131,10 @@ if __name__ == '__main__':
     #print(cosine_sim)  # The 3rd item of each inner list is the similarity score each book's details shares with the user's profile
 
     sim_list = list(enumerate(cosine_sim[-1]))
-    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)
+    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)[:14]
+    for book in sim_scores:
+        idx = book[0]
+        print(database_combined_book_data.loc[idx])
     print(sim_scores)
 
 
