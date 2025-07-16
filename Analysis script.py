@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
 
 
-    url = 'https://www.goodreads.com/review/list/174990394?shelf=read'
+    url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added'
     #https://www.goodreads.com/review/list/174990394?shelf=read
     #https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added
     links = [url]
@@ -133,8 +133,12 @@ if __name__ == '__main__':
     sim_list = list(enumerate(cosine_sim[-1]))
     sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)[:14]
     for book in sim_scores:
-        idx = book[0]
-        print(database_combined_book_data.loc[idx])
+        if book[1] < 1:
+            idx = book[0]
+            # print(book)
+            # print(idx)
+            # print(database_combined_book_data.loc[405])
+            print(database_combined_book_data.loc[idx])
     print(sim_scores)
 
 
