@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import linear_kernel
 
 #function that accepts a list of dataframes and merges them
 
-def dataframe_filtering(dataframes):
+def dataframe_filtering(dataframes):    #This is a filtering function; so it needs to be moved to the new filtering file
 
     num_of_pages = len(dataframes)
 
@@ -68,25 +68,18 @@ def exploratory_data_analysis(merged_dataframe):
     list_separation2 = re.sub(',', ' ', list_separation1)
 
 
-    #create a plot for the distribution of publish dates, making a note for the lowest book year recorded
-    #if the year is recent, with a large enough sample size, may suggest an interest in recent books - otherwise, the user may not care about when the book was released (so wouldn't filter the recommendations)
-    #or could suggest that most of their read books are within an X year range, or in X year, and maybe they would want to filter results down to that year
+    #Analysis idea: most recent/ oldest book read
 
 
 
-    #create a plot for the different subjects/ genres being read, look for any distinctly different ones - esp the most popular ones
-    #could recommend the user to search for a certain genre/subject to be recommended based on their book profile's most popular subjects/ genres
-
-
-
-    return list_separation2
+    return list_separation2     #returns a string of the user book profile, which will be compared against each book of a filtered database
 
 
 if __name__ == '__main__':
 
 
 
-    url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added'
+    url = 'https://www.goodreads.com/review/list/174990394?shelf=read'
     #https://www.goodreads.com/review/list/174990394?shelf=read
     #https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added
     links = [url]
@@ -114,31 +107,24 @@ if __name__ == '__main__':
     database_response = requests.get(
         url='https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
         headers=headers)
-    database_combined_book_data = database_collection(database_response)
-    database_combined_book_data.loc[-1, 'combined_book_data'] = user_combination
+    print(database_response.json())
+    database_combined_book_data = database_collection(database_response)    #dataframe of filtered book database; filtering is performed via URL adjustments
+    database_combined_book_data.loc[-1, 'combined_book_data'] = user_combination    #sets last value of the dataframe an index of -1, with the value as the user's filtered book profile
     print(database_combined_book_data['combined_book_data'].to_string())
-    #combined_book_series = database_combined_book_data['combined_book_data']
-
-    # print(database_combined_book_data)
-    # print(database_combined_book_data['combined_book_data'])
+    combined_book_series = database_combined_book_data['combined_book_data']
 
     vectoriser = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = vectoriser.fit_transform(database_combined_book_data['combined_book_data'])
-    # tfidf_matrix_user = vectoriser.fit_transform(user_profile)
-
+    tfidf_matrix = vectoriser.fit_transform(combined_book_series)
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
     #print(cosine_sim)  # The 3rd item of each inner list is the similarity score each book's details shares with the user's profile
 
     sim_list = list(enumerate(cosine_sim[-1]))
-    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)[:14]
+    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)[:14]    #Sorts list based on the cosine sim score in reverse order (descending - higher cosine scores shown first)
     for book in sim_scores:
-        if book[1] < 1:
-            idx = book[0]
-            # print(book)
-            # print(idx)
-            # print(database_combined_book_data.loc[405])
-            print(database_combined_book_data.loc[idx])
+        if book[1] < 1:     #Executes main clause provided the cosine sim score is less than 1 (i,e: it's not the user profile string itself)
+            idx = book[0]   #index
+            print(database_combined_book_data.loc[idx]) #uses the index of the books with the returned cosine scores to show their details from the main database's dataframe
     print(sim_scores)
 
 

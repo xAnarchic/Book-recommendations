@@ -2,11 +2,13 @@ import re
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
+import matplotlib.pyplot as plt
 
 
+    #Filtering needs to happen first to create the URL, which is used to create a response object that is then fed into this function to make a book database
 def database_collection(response):
-    #try/except statement
-    print(response.status_code)
+
+    print(response.status_code) #catch error codes for url that doesn't make sense + for url that takes too long to return a response
 
     books_per_author = len(response.json()['docs'])
 
@@ -17,53 +19,92 @@ def database_collection(response):
     released_dates = []
     ratings = []
     subjects = []
+    ratings_counts = []
 
     for num in range(books_per_author):
 
-        book_title = response.json()['docs'][num]['title']
+        try:
+            book_title = response.json()['docs'][num]['title']
 
-        if len(response.json()['docs'][num]['author_name']) == 1:
-            author_name = response.json()['docs'][num]['author_name'][0]
-        else:
-            author_name = ','.join(response.json()['docs'][num]['author_name'])
+        except Exception as e:
+            book_title = 'N/A'
 
-        date_published = response.json()['docs'][num]['first_publish_year']
 
-        #ratings_average = response.json()['docs'][num]['ratings_average']
 
-        if len(response.json()['docs'][num]['subject']) == 1:
-            subject = response.json()['docs'][num]['subject'][0]
-        else:
-            subject = ','.join(response.json()['docs'][num]['subject'])
+        try:
+            if len(response.json()['docs'][num]['author_name']) == 1:
+                author_name = response.json()['docs'][num]['author_name'][0]
+            else:
+                author_name = ','.join(response.json()['docs'][num]['author_name'])
+
+        except Exception as e:
+            author_name = 'N/A'
+
+
+        try:
+            date_published = response.json()['docs'][num]['first_publish_year']
+        except Exception as e:
+            date_published ='N/A'
+
+
+        try:
+            ratings_average = round(response.json()['docs'][num]['ratings_average'], 2)
+        except KeyError as e:
+            ratings_average = 'N/A'
+
+        try:
+            ratings_count = response.json()['docs'][num]['ratings_count']
+        except Exception as e:
+            ratings_count = 0   #can't show vals in plot if it's a string, consider changing this back to 'N/A
+
+        try:
+            if len(response.json()['docs'][num]['subject']) == 1:
+                subject = response.json()['docs'][num]['subject'][0]
+            else:
+                subject = ','.join(response.json()['docs'][num]['subject'])
+
+        except Exception as e:
+            subject = 'N/A'
+
+
+
 
         titles.append(book_title)
         authors.append(author_name)
         released_dates.append(str(date_published))
-        #ratings.append(round(ratings_average,2))
+        ratings.append(ratings_average)
         subjects.append(subject)
+        ratings_counts.append(ratings_count)
 
 
     all_books = {
          'title' : titles,
          'author' : authors,
          'released' : released_dates,
-         #'avg_rating' : ratings,
-         'subjects' : subjects
+         'avg_rating' : ratings,
+         'subjects' : subjects,
+        'ratings_counts' : ratings_counts
         }
 
 
     df = pd.DataFrame(all_books)
+    print(df['ratings_counts'].value_counts())
+    ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
+    ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+    plt.show()
 
-    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects']
+    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
     # df.loc[-1, 'combined_book_data'] = 'checking check'
 
 
     return df
 
 def user_data_collection(url):
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
+
     user_response = requests.get(url = url, headers = headers)
 
     if user_response.status_code == 200:
@@ -120,8 +161,10 @@ def user_data_collection(url):
                 for single_genre in all_book_genres:
                     genre = single_genre.get_text()
                     genre_list.append(genre)
+
             all_genres = ','.join(genre_list)
             genres.append(all_genres)
+
             try:
                 book_released = book_soup.find('p', attrs = {'data-testid' : 'publicationInfo'}).get_text()
                 released.append(book_released[-4:])
@@ -171,19 +214,23 @@ if __name__ == '__main__':
     }
     # user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
     # user_data_collection(user_response)
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&language=eng', headers = headers)
-    database_combined_book_data = database_collection(database_response)
-    print(database_combined_book_data)
 
-    #Idea will be to: condense each user's favourite books into a single array, calculate its consine similarity with each book of the database, then grab the top highest books in terms of that value
-    #Potential tha above yields multiple books with a cosine similarity of 1, simply becasue the user profile array is just so long -> will then try out the genre filters -> Although it'd have to be from an author
-    #the user has highly rated before for it to be a perfect 1
-    #Can then give user filtering options, ie: fantasy/ contemporary genres (compare against the same type of book in the database), consider books read by the user in the last X years - in other words, filter
-    #the books within the user profile to create a different vector that is subsequently used to determine a cosine similarity with (the vectors) of books within the database
+
+    # These lines should go into the filtering file once proven to work
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=5000&language=eng', #set limit to 2 so loop in database_collection function still works
+                                     headers = headers) #first url would still be based on user requests but limit is set to 2 for a faster return
+
+    database_collection(database_response)  #using to analyse ratings count
+
+
+    number_of_books = database_response.json()['numFound']
+    #new_url =                      #second url difference is only that limit is set to the maximum amount
+
+
 
     pass
 
-
+#https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&language=eng
 
 
 
