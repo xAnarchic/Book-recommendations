@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
     #Filtering needs to happen first to create the URL, which is used to create a response object that is then fed into this function to make a book database
@@ -42,9 +43,9 @@ def database_collection(response):
 
 
         try:
-            date_published = response.json()['docs'][num]['first_publish_year']
+            date_published = int(response.json()['docs'][num]['first_publish_year'])
         except Exception as e:
-            date_published ='N/A'
+            date_published = 'N/A'
 
 
         try:
@@ -88,16 +89,16 @@ def database_collection(response):
 
 
     df = pd.DataFrame(all_books)
-    print(df['ratings_counts'].value_counts())
-    ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
-    ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-    plt.show()
+    # print(df['ratings_counts'].value_counts())
+    # ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
+    # ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+    # plt.show()
 
     df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
     # df.loc[-1, 'combined_book_data'] = 'checking check'
 
 
-    return df
+    return df['released']
 
 def user_data_collection(url):
 
@@ -217,10 +218,22 @@ if __name__ == '__main__':
 
 
     # These lines should go into the filtering file once proven to work
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=5000&language=eng', #set limit to 2 so loop in database_collection function still works
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=10&language=eng', #set limit to 2 so loop in database_collection function still works
                                      headers = headers) #first url would still be based on user requests but limit is set to 2 for a faster return
 
-    database_collection(database_response)  #using to analyse ratings count
+    book_database = database_collection(database_response)
+    print(book_database.values)  # <class 'numpy.ndarray'> ?
+    print(book_database.values.astype(int))
+
+    sns.kdeplot(book_database.values.astype(int), color='green', label='Normal Distribution')
+
+    # Labels and title
+    plt.xlabel('X')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 
 
     number_of_books = database_response.json()['numFound']
