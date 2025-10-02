@@ -10,7 +10,7 @@ def database_collection(response):
 
     print(response.status_code) #catch error codes for url that doesn't make sense + for url that takes too long to return a response
 
-    books_per_author = len(response.json()['docs'])
+    books_per_author = len(response.json()['docs'])#Check this name makes sense
 
     print('Total books in the \"Young Adult\" genre:', books_per_author)
 
