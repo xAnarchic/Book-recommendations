@@ -28,7 +28,7 @@ def dataframe_filtering(dataframes):    #This is a filtering function; so it nee
         dataframe_versions = {
             'full_merged' : merged,
             'lower_merged' : one_two_three_stars,
-            'upper_merged' : four_five_stars
+            'upper_merged' : four_five_stars#Only keep this version
         }
 
         return dataframe_versions
