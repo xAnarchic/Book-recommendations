@@ -91,9 +91,9 @@ def database_collection(response):
     print(df['ratings_counts'].value_counts())
     ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
     ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-    plt.show()
+    plt.show() #Looking at how many ratings these books have to determine whether I can afford to remove the books with few ratings
 
-    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
+    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']. # Should this have 2x subjects
     # df.loc[-1, 'combined_book_data'] = 'checking check'
 
 
