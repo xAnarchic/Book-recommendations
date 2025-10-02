@@ -41,7 +41,7 @@ def dataframe_filtering(dataframes):    #This is a filtering function; so it nee
 
 #function that accepts a dataframe to perform some EDA with
 
-def exploratory_data_analysis(merged_dataframe):
+def exploratory_data_analysis(merged_dataframe):#Get most pop authors, genres- use genres to guide user when creating book database url in the filtering file + can add some unsupervised learning on book data to understand what kind of books the user likes
 
     # authors_df = merged_dataframe['author'].value_counts()[:10].to_frame()
     # authors_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
