@@ -185,7 +185,7 @@ def user_data_collection(url):
         return df
 
     else:
-        print(f'An error occurred while trying to get this page\'s information: {url}')
+        print(f'An error occurred whilst trying to get this page\'s information: {url}')
 
 def url_generator(url, links):
 
