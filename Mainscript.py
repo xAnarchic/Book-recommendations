@@ -9,96 +9,87 @@ import seaborn as sns
     #Filtering needs to happen first to create the URL, which is used to create a response object that is then fed into this function to make a book database
 def database_collection(response):
 
-    print(response.status_code) #catch error codes for url that doesn't make sense + for url that takes too long to return a response
+    if response.status_code == 200:
 
-    books_per_author = len(response.json()['docs'])
+        books_per_author = len(response.json()['docs'])
 
-    print('Total books in the \"Young Adult\" genre:', books_per_author)
+        titles = []
+        authors = []
+        released_dates = []
+        ratings = []
+        subjects = []
+        ratings_counts = []
 
-    titles = []
-    authors = []
-    released_dates = []
-    ratings = []
-    subjects = []
-    ratings_counts = []
+        for num in range(books_per_author):
 
-    for num in range(books_per_author):
+            try:
+                book_title = response.json()['docs'][num]['title']
+            except Exception as e:
+                book_title = 'N/A'
 
-        try:
-            book_title = response.json()['docs'][num]['title']
+            try:
+                if len(response.json()['docs'][num]['author_name']) == 1:
+                    author_name = response.json()['docs'][num]['author_name'][0]
+                else:
+                    author_name = ','.join(response.json()['docs'][num]['author_name'])
+            except Exception as e:
+                author_name = 'N/A'
 
-        except Exception as e:
-            book_title = 'N/A'
+            try:
+                date_published = int(response.json()['docs'][num]['first_publish_year'])
+            except Exception as e:
+                date_published = 'N/A'
 
+            try:
+                ratings_average = round(response.json()['docs'][num]['ratings_average'], 2)
+            except KeyError as e:
+                ratings_average = 'N/A'
 
+            try:
+                ratings_count = response.json()['docs'][num]['ratings_count']
+            except Exception as e:
+                ratings_count = 0   #can't show vals in plot if it's a string, consider changing this back to 'N/A
 
-        try:
-            if len(response.json()['docs'][num]['author_name']) == 1:
-                author_name = response.json()['docs'][num]['author_name'][0]
-            else:
-                author_name = ','.join(response.json()['docs'][num]['author_name'])
-
-        except Exception as e:
-            author_name = 'N/A'
-
-
-        try:
-            date_published = int(response.json()['docs'][num]['first_publish_year'])
-        except Exception as e:
-            date_published = 'N/A'
-
-
-        try:
-            ratings_average = round(response.json()['docs'][num]['ratings_average'], 2)
-        except KeyError as e:
-            ratings_average = 'N/A'
-
-        try:
-            ratings_count = response.json()['docs'][num]['ratings_count']
-        except Exception as e:
-            ratings_count = 0   #can't show vals in plot if it's a string, consider changing this back to 'N/A
-
-        try:
-            if len(response.json()['docs'][num]['subject']) == 1:
-                subject = response.json()['docs'][num]['subject'][0]
-            else:
-                subject = ','.join(response.json()['docs'][num]['subject'])
-
-        except Exception as e:
-            subject = 'N/A'
+            try:
+                if len(response.json()['docs'][num]['subject']) == 1:
+                    subject = response.json()['docs'][num]['subject'][0]
+                else:
+                    subject = ','.join(response.json()['docs'][num]['subject'])
+            except Exception as e:
+                subject = 'N/A'
 
 
+            titles.append(book_title)
+            authors.append(author_name)
+            released_dates.append(str(date_published))
+            ratings.append(ratings_average)
+            subjects.append(subject)
+            ratings_counts.append(ratings_count)
+
+        all_books = {
+             'title' : titles,
+             'author' : authors,
+             'released' : released_dates,
+             'avg_rating' : ratings,
+             'subjects' : subjects,
+            'ratings_counts' : ratings_counts
+            }
 
 
-        titles.append(book_title)
-        authors.append(author_name)
-        released_dates.append(str(date_published))
-        ratings.append(ratings_average)
-        subjects.append(subject)
-        ratings_counts.append(ratings_count)
+        df = pd.DataFrame(all_books)
+        # print(df['ratings_counts'].value_counts())
+        # ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
+        # ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
+        # plt.show()
+
+        df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
+        # df.loc[-1, 'combined_book_data'] = 'checking check'
 
 
-    all_books = {
-         'title' : titles,
-         'author' : authors,
-         'released' : released_dates,
-         'avg_rating' : ratings,
-         'subjects' : subjects,
-        'ratings_counts' : ratings_counts
-        }
+        return df
 
-
-    df = pd.DataFrame(all_books)
-    # print(df['ratings_counts'].value_counts())
-    # ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
-    # ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-    # plt.show()
-
-    df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
-    # df.loc[-1, 'combined_book_data'] = 'checking check'
-
-
-    return df['released']
+    else:
+        print(f'An error has occurred collecting the book database: {response.status_code}')
 
 def user_data_collection(url):
 
@@ -168,7 +159,8 @@ def user_data_collection(url):
 
             try:
                 book_released = book_soup.find('p', attrs = {'data-testid' : 'publicationInfo'}).get_text()
-                released.append(book_released[-4:])
+                print(book_released)
+                print(released.append(book_released[-4:]))
             except AttributeError:
                 book_released = 'N/A'
                 released.append(book_released)
@@ -182,7 +174,6 @@ def user_data_collection(url):
         }
 
         df = pd.DataFrame(user_books)
-
         return df
 
     else:
@@ -204,7 +195,7 @@ def url_generator(url, links):
 
         url_generator(next_page_link, links)
     except AttributeError:
-        print('done')
+        print('All review pages from the user have been retrieved.')
 
     return links
 
@@ -218,35 +209,26 @@ if __name__ == '__main__':
 
 
     # These lines should go into the filtering file once proven to work
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=10&language=eng', #set limit to 2 so loop in database_collection function still works
-                                     headers = headers) #first url would still be based on user requests but limit is set to 2 for a faster return
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=100&language=eng',
+                                     headers = headers)
 
-    book_database = database_collection(database_response)
-    print(book_database.values)  # <class 'numpy.ndarray'> ?
-    print(book_database.values.astype(int))
-
-    sns.kdeplot(book_database.values.astype(int), color='green', label='Normal Distribution')
-
-    # Labels and title
-    plt.xlabel('X')
-    plt.ylabel('Density')
-    plt.legend()
-    plt.grid()
-    plt.show()
+    print(database_collection(database_response).to_string())
 
 
 
     number_of_books = database_response.json()['numFound']
-    #new_url =                      #second url difference is only that limit is set to the maximum amount
+    limit_num = number_of_books
+    new_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit={limit_num}&language=eng'
+
+    new_database_response = requests.get(url = new_url, headers = headers)
+
+    print(database_collection(new_database_response).to_string())
 
 
 
     pass
 
 #https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&language=eng
-
-
-
 
 
 
