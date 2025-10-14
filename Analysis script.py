@@ -75,8 +75,6 @@ def analysis(full_profile_df):
     # plt.show()
 
 
-    #Analysis idea: most recent/ oldest book read
-
     return
 
 
