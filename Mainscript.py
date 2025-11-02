@@ -11,6 +11,8 @@ def database_collection(response):
 
     if response.status_code == 200:
 
+
+
         books_per_author = len(response.json()['docs'])
 
         titles = []
@@ -36,7 +38,7 @@ def database_collection(response):
                 author_name = 'N/A'
 
             try:
-                date_published = int(response.json()['docs'][num]['first_publish_year'])
+                date_published = response.json()['docs'][num]['first_publish_year']
             except Exception as e:
                 date_published = 'N/A'
 
@@ -66,6 +68,7 @@ def database_collection(response):
             subjects.append(subject)
             ratings_counts.append(ratings_count)
 
+
         all_books = {
              'title' : titles,
              'author' : authors,
@@ -75,16 +78,9 @@ def database_collection(response):
             'ratings_counts' : ratings_counts
             }
 
-
         df = pd.DataFrame(all_books)
-        # print(df['ratings_counts'].value_counts())
-        # ratings_count_df = df['ratings_counts'].value_counts().sort_index()[:50].to_frame()
-        # ratings_count_df.plot(kind = 'barh', rot = 0, figsize = (16,10))
-        # plt.show()
-
-        df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' ' + df['released'] + ' ' + df['subjects'] + ' ' + df['subjects']
-        # df.loc[-1, 'combined_book_data'] = 'checking check'
-
+        print(df)
+        df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' '  + df['released'] + ' '  + df['subjects']
 
         return df
 
@@ -159,8 +155,7 @@ def user_data_collection(url):
 
             try:
                 book_released = book_soup.find('p', attrs = {'data-testid' : 'publicationInfo'}).get_text()
-                print(book_released)
-                print(released.append(book_released[-4:]))
+                released.append(book_released[-4:])
             except AttributeError:
                 book_released = 'N/A'
                 released.append(book_released)
@@ -173,8 +168,8 @@ def user_data_collection(url):
             'subjects': genres
         }
 
-        df = pd.DataFrame(user_books)
-        return df
+        user_books_df = pd.DataFrame(user_books)
+        return user_books_df
 
     else:
         print(f'An error occurred while trying to get this page\'s information: {url}')
@@ -208,20 +203,29 @@ if __name__ == '__main__':
 
 
     # These lines should go into the filtering file once proven to work
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=100&language=eng',
+    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
                                      headers = headers)
+    n = 0
 
-    print(database_collection(database_response).to_string())
+    books_found = database_response.json()['numFound']
+    while books_found == 0:    #checking if the api is working
+        n += 1
+        database_response = requests.get(
+            url='https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
+            headers=headers)
+        print(f'Attempt {n}...')
+    database_df = database_collection(database_response)
+    print(books_found)
 
 
 
-    number_of_books = database_response.json()['numFound']
-    limit_num = number_of_books
-    new_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit={limit_num}&language=eng'
-
-    new_database_response = requests.get(url = new_url, headers = headers)
-
-    print(database_collection(new_database_response).to_string())
+    # number_of_books = database_response.json()['numFound']
+    # limit_num = number_of_books
+    # new_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit={limit_num}&language=eng'
+    #
+    # new_database_response = requests.get(url = new_url, headers = headers)
+    #
+    # print(database_collection(new_database_response).to_string())
 
 
 
