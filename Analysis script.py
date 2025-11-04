@@ -134,7 +134,10 @@ def user_profile_string(above_average_df):
     cleaned_nested_lists = re.sub('\'', '', str(combined_book_data)[1:-1])  # remove brackets using index, remove quotation marks too
     list_separation1 = re.sub(', ', ' ', cleaned_nested_lists)
     string_of_user_profile = re.sub(',', ' ', list_separation1)
-
+    
+    """Need to search through the user dataframe to only keep books that contain the genre/s that the user also searches through the book database for (make a function for this in the "filter" file)
+    Then supply this new dataframe to this function"""
+    
     return string_of_user_profile
 
 
@@ -234,7 +237,7 @@ if __name__ == '__main__':
         print(psutil.virtual_memory())
         #print(cosine_score_computations(combined_book_series))
 
-        print('Check to see if this list of books is increasing by 15 each time')
+        #print('Check to see if this list of books is increasing by 15 each time')
         #print([x['Title'] for x in all_top_15_recommendations])
         #data collection percentage progress / data collected message at end
 
@@ -250,7 +253,6 @@ if __name__ == '__main__':
         for book in final_top_15_books_sorted:
 
             print(f'Book title: {book['Title']} \n Year released: {book['Release year']} \n Author : {book['Author']} \n Sim score : {book['Sim score']} \n ------------------')
-
 
 
 
