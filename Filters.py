@@ -61,7 +61,7 @@ def book_database_urls():
 
         created_urls.append(main_url)
 
-    return created_urls
+    return created_urls  # ------------------------------Testing cosine score computation on a single dataframe of 1000 books -----------------------
 
 def database_dataframe_merge(dataframes):
 
@@ -106,7 +106,7 @@ def user_profile_filter(user_df):
 
 if __name__ == '__main__':
 
-    all_urls = book_database_urls()
+    all_urls = ['https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=fantasy&limit=1000&offset=66000&language=eng']
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'

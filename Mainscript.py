@@ -1,4 +1,6 @@
 import re
+
+import psutil
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -73,14 +75,23 @@ def database_collection(response):
              'title' : titles,
              'author' : authors,
              'released' : released_dates,
-             'avg_rating' : ratings,
+             #'avg_rating' : ratings,
              'subjects' : subjects,
-            'ratings_counts' : ratings_counts
+            #'ratings_counts' : ratings_counts
             }
 
         df = pd.DataFrame(all_books)
         print(df)
         df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' '  + df['released'] + ' '  + df['subjects']
+
+        df.drop(['subjects'], axis = 1)
+
+        print(psutil.virtual_memory())
+        # memory_usage = sum(df.memory_usage(deep = True))
+        # if memory_usage != 0:
+        #     print(memory_usage)
+
+
 
         return df
 

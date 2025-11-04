@@ -1,3 +1,11 @@
+"""
+1) More titles than expected are appearing in the output - double check if only the top 15 books are really being taken from each set of 1000 books
+
+
+
+"""
+
+import math
 from Mainscript import database_collection, user_data_collection, url_generator
 from Filters import book_database_urls, database_dataframe_merge
 from multiprocessing import Pool
@@ -8,6 +16,7 @@ import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 import seaborn as sns
+import psutil
 
 
 #function that accepts a list of dataframes and merges them
@@ -81,6 +90,41 @@ def analysis(full_profile_df):
 
     return
 
+def cosine_score_computations(database_user_series):
+
+    vectoriser = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectoriser.fit_transform(combined_book_series)
+    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+
+
+    sim_list = list(enumerate(cosine_sim[-1]))
+    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)    #Sorts list based on the cosine sim score in reverse order (descending - higher cosine scores shown first)
+    #print('Top 15 book recommendations in order: \n')
+
+    recommended_book_list = []
+
+    for book in sim_scores:
+        if book[1] < 0.999: #Condition is met provided the cosine sim score is less than 1 (ie: it's not the user profile string itself)
+            idx = book[0]   #index
+            book_title = merged_dataframes.loc[idx]['title']
+            year_released = merged_dataframes.loc[idx]['released']
+            author = merged_dataframes.loc[idx]['author']
+
+            if not book_title in user_dataframe['title'].to_list()[:15]:
+                recommended_book_info = {
+                    'Title' : book_title,
+                    'Release year' : year_released,
+                    'Author' : author,
+                    'Sim score' : book[1]
+                                        }
+                recommended_book_list.append(recommended_book_info)
+
+    # for book in recommended_book_list[:15]:
+    #     print(f'Book title: {book['Title']} \n Year released: {book['Release year']} \n Author : {book['Author']} \n Sim score : {book['Sim score']} \n ------------------')
+
+    return recommended_book_list
+
+
 
 #function that accepts a dataframe to perform some EDA with
 
@@ -93,6 +137,18 @@ def user_profile_string(above_average_df):
 
     return string_of_user_profile
 
+
+def books_request(database_url):
+    header = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    response = requests.get(
+        url = database_url,
+        headers = header
+    )
+
+    return response
 
 if __name__ == '__main__':
 
@@ -120,67 +176,91 @@ if __name__ == '__main__':
                     }
 
     all_urls = book_database_urls()
+    all_top_15_recommendations = []
 
-    database_dataframes = []    #dataframes from the database are stored here
+    all_database_dataframes = []    #dataframes from the database are stored here
 
     for url in all_urls:    #initial database request - checks if API is working
         print('Attempt 1...')
-        database_response = requests.get(
-            url=url,
-            headers=headers
-        )
+        database_response = books_request(url)
 
         n = 1
 
-        while database_response.json()['numFound'] == 0:    #the request is made again if the initial request fails
+        while database_response.status_code != 200 or database_response.json()['numFound'] == 0:
+
             n += 1
             print(f'Attempt {n}...')
-            database_response = requests.get(
-                url=url,
-                headers=headers
-            )
-
-        database_dataframe_combined = database_collection(database_response)  #upon a successful request, a dataframe is created and appended to an empty list
-
-        database_dataframes.append(database_dataframe_combined) #has a column created from the concatenations of other columns
-
-    merged_dataframes = database_dataframe_merge(database_dataframes)   #merges all the created dataframes together
-    merged_dataframes.loc[-1, 'combined_book_data'] = user_combination    #sets last value of the dataframe an index of -1, with the value as the user's filtered book profile
-    combined_book_series = merged_dataframes['combined_book_data']
-
-    print(combined_book_series)
-
-    vectoriser = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = vectoriser.fit_transform(combined_book_series)
-    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
-
-    sim_list = list(enumerate(cosine_sim[-1]))
-    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)    #Sorts list based on the cosine sim score in reverse order (descending - higher cosine scores shown first)
-    print('Top 15 book recommendations in order: \n')
-
-    recommended_book_list = []
-
-    for book in sim_scores:
-        if book[1] < 0.999: #Condition is met provided the cosine sim score is less than 1 (ie: it's not the user profile string itself)
-            idx = book[0]   #index
-            book_title = merged_dataframes.loc[idx]['title']
-            year_released = merged_dataframes.loc[idx]['released']
-            author = merged_dataframes.loc[idx]['author']
-
-            if not book_title in user_dataframe['title'].to_list():
-                recommended_book_info = {
-                    'Title' : book_title,
-                    'Release year' : year_released,
-                    'Author' : author,
-                    'Sim score' : book[1]
-                                        }
-                recommended_book_list.append(recommended_book_info)
-
-    for book in recommended_book_list[:15]:
-        print(f'Book title: {book['Title']} \n Year released: {book['Release year']} \n Author : {book['Author']} \n Sim score : {book['Sim score']} \n ------------------')
+            database_response = books_request(url)
 
 
-    #data collection percentage progress / data collected message at end
+        database_dataframes_combined = database_collection(database_response)  #upon a successful request, a dataframe is created and appended to an empty list
+
+        all_database_dataframes.append(database_dataframes_combined) #has a column created from the concatenations of other columns
+
+    num_of_dataframes = len(all_database_dataframes)
+
+    if num_of_dataframes > 20:
+
+        iterations = math.ceil(num_of_dataframes / 20)
+
+    else:
+
+        iterations = 1
+
+    for num in range(iterations):
+
+        if num == iterations - 1:
+
+            endpoint = num_of_dataframes
+
+        else:
+
+            endpoint = (num + 1) * 20
+
+        print((num * 20), ':', endpoint)
+
+        merged_dataframes = database_dataframe_merge(all_database_dataframes[(num * 20) : endpoint])   #merges all the created dataframes together
+        merged_dataframes.loc[-1, 'combined_book_data'] = user_combination    #sets last value of the dataframe an index of -1, with the value as the user's filtered book profile
+        combined_book_series = merged_dataframes['combined_book_data']
+
+
+        #print(combined_book_series)
+        # print(combined_book_series.memory_usage())
+        # print(psutil.virtual_memory())
+        # print(f'Free memory remaining = {psutil.virtual_memory()[1] - combined_book_series.memory_usage()}')
+
+        all_top_15_recommendations += cosine_score_computations(combined_book_series)
+
+        print(psutil.virtual_memory())
+        #print(cosine_score_computations(combined_book_series))
+
+        print('Check to see if this list of books is increasing by 15 each time')
+        #print([x['Title'] for x in all_top_15_recommendations])
+        #data collection percentage progress / data collected message at end
+
+
+        # print('check 1')
+        # print(all_top_15_recommendations)
+        final_top_15_books_sorted = sorted(all_top_15_recommendations, key = lambda x : x['Sim score'], reverse = True)[0:15]
+        # print(final_top_15_books_sorted)
+        # print('check 2')
+
+        print('Check to see if the overall top 15 books are changing')
+
+        for book in final_top_15_books_sorted:
+
+            print(f'Book title: {book['Title']} \n Year released: {book['Release year']} \n Author : {book['Author']} \n Sim score : {book['Sim score']} \n ------------------')
+
+
+
+
+#svmem(total=8469581824, available=665677824, percent=92.1, used=7803904000, free=665677824) with 10 urls
+#663193368 with 10 urls
+
+#svmem(total=8469581824, available=681005056, percent=92.0, used=7788576768, free=681005056) with 5 urls
+#680915784 with 5 urls
+
+#17,722,416 for 5 urls?
 
 
 """
@@ -188,4 +268,5 @@ if __name__ == '__main__':
 2) Calculate how many urls we can use for our cosine calculations
 3) Iteratively perform cosine calculations, taking X of the top cosine scores from each calculation - with the goal of having 15 recommendations by the end of this process 
 
+4) Filter user profile for the genre/s being used to create the book database\
 """
