@@ -1,13 +1,8 @@
-from Mainscript import database_collection
 import requests
 import math
 import pandas as pd
 
-"""
-1) Could maybe do a progress bar for database data collection (likely longest part of process) 
-- (Database nu/ Database total) * 100
 
-"""
 
 def book_database_urls(genres_of_interest):
 
@@ -84,7 +79,6 @@ def user_profile_filter(above_average_df, url_genres):
         check = all(x in v.lower() for x in url_genres)
 
         if check:
-            print(above_average_df.iloc[i])
             series_list.append(above_average_df.iloc[i])
 
     if series_list is [] or series_list == []:
@@ -97,37 +91,23 @@ def user_profile_filter(above_average_df, url_genres):
         return filtered_user_df
 
 
+#function that accepts a list of dataframes and merges them
+
+def dataframe_merging(dataframes):    #This is a filtering function; so it needs to be moved to the new filtering file
+
+    num_of_pages = len(dataframes)
+
+    if num_of_pages > 1:
+
+        merged = dataframes[0].merge(how='outer', right=dataframes[1])
+        page_counter = 1
+        while num_of_pages > page_counter + 1:
+            page_counter += 1
+            merged = merged.merge(how='outer', right=dataframes[page_counter])
+
+    else:
+        merged = dataframes[0]
 
 
-if __name__ == '__main__':
-
-    all_urls = ['https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=fantasy&limit=1000&offset=66000&language=eng']
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-
-    database_dataframes = []
-
-    for url in all_urls:
-        print('Attempt 1...')
-        database_response = requests.get(
-            url = url,
-            headers = headers
-        )
-
-        n = 1
-
-        while database_response.json()['numFound'] == 0:
-            n += 1
-            print(f'Attempt {n}...')
-            database_response = requests.get(
-                url=url,
-                headers=headers
-            )
-
-        database_dataframes.append(database_collection(database_response))
-
-    print(database_dataframe_merge(database_dataframes))
-
+    return merged
 

@@ -2,6 +2,7 @@ import re
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
+import sys
 
 
 
@@ -9,10 +10,7 @@ from bs4 import BeautifulSoup
 def database_collection(response):
 
     if response.status_code == 200:
-
-
-
-        books_per_author = len(response.json()['docs'])
+        books_per_url = len(response.json()['docs'])
 
         titles = []
         authors = []
@@ -21,11 +19,11 @@ def database_collection(response):
         subjects = []
         ratings_counts = []
 
-        for num in range(books_per_author):
+        for num in range(books_per_url):
 
             try:
                 book_title = response.json()['docs'][num]['title']
-            except Exception as e:
+            except KeyError:
                 book_title = 'N/A'
 
             try:
@@ -33,22 +31,22 @@ def database_collection(response):
                     author_name = response.json()['docs'][num]['author_name'][0]
                 else:
                     author_name = ','.join(response.json()['docs'][num]['author_name'])
-            except Exception as e:
+            except KeyError:
                 author_name = 'N/A'
 
             try:
                 date_published = response.json()['docs'][num]['first_publish_year']
-            except Exception as e:
+            except KeyError:
                 date_published = 'N/A'
 
             try:
                 ratings_average = round(response.json()['docs'][num]['ratings_average'], 2)
-            except KeyError as e:
+            except KeyError:
                 ratings_average = 'N/A'
 
             try:
                 ratings_count = response.json()['docs'][num]['ratings_count']
-            except Exception as e:
+            except KeyError:
                 ratings_count = 0   #can't show vals in plot if it's a string, consider changing this back to 'N/A
 
             try:
@@ -56,7 +54,7 @@ def database_collection(response):
                     subject = response.json()['docs'][num]['subject'][0]
                 else:
                     subject = ','.join(response.json()['docs'][num]['subject'])
-            except Exception as e:
+            except KeyError:
                 subject = 'N/A'
 
 
@@ -80,12 +78,12 @@ def database_collection(response):
         df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' '  + df['released'] + ' '  + df['subjects']
 
         df.drop(['subjects'], axis = 1)
-        print('ctrl f tracker: done')
+
         return df
 
     else:
         print(f'An error has occurred collecting the book database: {response.status_code}')
-
+        sys.exit()
 
 
 
@@ -191,34 +189,9 @@ def url_generator(url, links):
 
         url_generator(next_page_link, links)
     except AttributeError:
-        print('All review pages from the user have been retrieved.')
+        print('\n All review pages from the user have been retrieved. \n')
 
     return links
-
-
-
-if __name__ == '__main__':
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-
-    # These lines should go into the filtering file once proven to work
-    database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
-                                     headers = headers)
-    n = 0
-
-    books_found = database_response.json()['numFound']
-    while books_found == 0:    #checking if the api is working
-        n += 1
-        database_response = requests.get(
-            url='https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
-            headers=headers)
-        print(f'Attempt {n}...')
-    database_df = database_collection(database_response)
-    print(books_found)
-
-
-    pass
 
 
 

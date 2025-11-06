@@ -1,6 +1,6 @@
 import math
 from Mainscript import database_collection, user_data_collection, url_generator
-from Filters import book_database_urls, database_dataframe_merge, user_profile_filter
+from Filters import book_database_urls, database_dataframe_merge, user_profile_filter, dataframe_merging
 from multiprocessing import Pool
 import pandas as pd
 import re
@@ -9,39 +9,19 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
 
-#function that accepts a list of dataframes and merges them
-
-def dataframe_filtering(dataframes):    #This is a filtering function; so it needs to be moved to the new filtering file
-
-    num_of_pages = len(dataframes)
-
-    if num_of_pages > 1:
-
-        merged = dataframes[0].merge(how='outer', right=dataframes[1])
-        page_counter = 1
-        while num_of_pages > page_counter + 1:
-            page_counter += 1
-            merged = merged.merge(how='outer', right=dataframes[page_counter])
-
-    else:
-        merged = all_page_data[0]
-
-    clean_merged = merged[merged['avg_rating'] != 'N/A']
-    ratings_vals = clean_merged['avg_rating'].values
-    average_user_rating = sum(ratings_vals) / len(ratings_vals)
-
-    print(f'Across all of the user\'s ratings, they have given an average rating of: {average_user_rating}')
-
-    above_average_df = clean_merged[clean_merged['avg_rating'] >= average_user_rating]
-
-    return {'full_profile_df' : merged, 'above_average_profile_df' : above_average_df}
-
 
 #function that performs some analysis using the user's book profile (above their average
 
 def analysis(full_profile_df):
 
     print('Performing analysis...')
+
+    clean_merged = full_profile_df[full_profile_df['avg_rating'] != 'N/A']
+    ratings_vals = clean_merged['avg_rating'].values
+    average_user_rating = sum(ratings_vals) / len(ratings_vals)
+    above_average_df = clean_merged[clean_merged['avg_rating'] >= average_user_rating]
+
+    print(f'Across all of the user\'s ratings, they have given an average rating of: {round(average_user_rating, 2)}')
 
     user_profile_authors = full_profile_df['author'].value_counts()[:3]
     top_3_authors = user_profile_authors.index.to_list()
@@ -55,7 +35,7 @@ def analysis(full_profile_df):
     top_3_genres = subject_counts.index.to_list()
     print(f'The user\'s top 3 genres are: {top_3_genres[0]} , {top_3_genres[1]} and {top_3_genres[2]}.')
 
-    return
+    return above_average_df
 
 
 
@@ -142,13 +122,11 @@ if __name__ == '__main__':
 
     pool = Pool(processes=page_num)
     all_page_data = pool.map(user_data_collection, all_pages) # returns a list of dataframes
-    output_dataframe = dataframe_filtering(all_page_data)
+    full_user_dataframe = dataframe_merging(all_page_data)
 
-    user_dataframe = output_dataframe['above_average_profile_df']
+    above_average_user_dataframe = analysis(full_user_dataframe) # performs user profile analysis
 
-    analysis(user_dataframe) # performs user profile analysis
-
-    genre_filtered_df = user_profile_filter(user_dataframe, search_genres)
+    genre_filtered_df = user_profile_filter(above_average_user_dataframe, search_genres)
 
     user_combination = user_profile_string(genre_filtered_df)
 
@@ -159,8 +137,10 @@ if __name__ == '__main__':
 
     all_database_dataframes = []    #dataframes from the database are stored here
 
+    url_num = 1
 
     for url in all_urls:    #initial database request - checks if API is working
+
         print('Attempt 1...')
         database_response = books_request(url)
 
@@ -171,9 +151,15 @@ if __name__ == '__main__':
             print(f'Attempt {n}...')
             database_response = books_request(url)
 
+        url_num += 1
+        number_of_books = database_response.json()['numFound']
+        database_extraction_progress = round(( (url_num / (number_of_books/1000)) * 100), 2)
+        print(f'Percentage of book data extracted from database: {database_extraction_progress}% ... \n')
+
         database_dataframe = database_collection(database_response)  #upon a successful request, a dataframe is created and appended to an empty list
         all_database_dataframes.append(database_dataframe)
 
+    print('Book data extraction from database is complete. \n')
     num_of_dataframes = len(all_database_dataframes)
 
     if num_of_dataframes > 20:
@@ -182,6 +168,7 @@ if __name__ == '__main__':
     else:
         iterations = 1
 
+    print('Computing cosine scores and making recommendations... \n')
     for num in range(iterations):
         if num == iterations - 1:
             endpoint = num_of_dataframes
