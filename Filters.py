@@ -1,22 +1,15 @@
 from Mainscript import database_collection
 import requests
 import math
+import pandas as pd
 
+"""
+1) Could maybe do a progress bar for database data collection (likely longest part of process) 
+- (Database nu/ Database total) * 100
 
-def book_database_urls():
+"""
 
-    print('How many genres are you interested in?')
-    genre_num = int(input())
-
-    url_genres = []
-
-    for num in range(genre_num):
-
-        print(f'What is genre {num + 1}?')
-        genre = input().replace(' ', '+')
-        url_genres.append(genre)
-
-    genres_of_interest = '+'.join(url_genres)
+def book_database_urls(genres_of_interest):
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -37,7 +30,6 @@ def book_database_urls():
             url=base_url,
             headers=headers)
         books_found = database_response.json()['numFound']
-        print(books_found)
 
     total_url_num = math.ceil(books_found/1000)
 
@@ -55,54 +47,57 @@ def book_database_urls():
 
         else:
             offset = (url_num *1000) - 1000
-        #print(f'URL number {url_num}: \n Limit = {limit} \n offset = {offset} ')
+
 
         main_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject={genres_of_interest}&limit={limit}&offset={offset}&language=eng'
 
         created_urls.append(main_url)
 
-    return created_urls  # ------------------------------Testing cosine score computation on a single dataframe of 1000 books -----------------------
+    return created_urls
+
+
 
 def database_dataframe_merge(dataframes):
 
     if len(dataframes) > 1:
-
         merged = dataframes[0].merge(dataframes[1], how='outer')
-
         num = 1
 
         while num < len(dataframes) - 1:
 
             merged = merged.merge(dataframes[num + 1], how='outer')
-
             num += 1
 
         return merged
 
     else:
-
         return dataframes[0]
 
-""""
-1) Get a full dataframe for any single genre/ combination of genres
-2) Implement the url builder + dataframe merging functions into the analysis script
-3) Check if cosine scores are being calculated
-4) Create the below "user_profile_filter" function - check if the user has read X%/ X books of a certain genre that were reviewed positively, then use these to create book recommendations for the user
-
-"""
 
 
 
+def user_profile_filter(above_average_df, url_genres):
+
+    series_list = []
+
+    for i, v in enumerate(above_average_df['subjects']):
+        check = all(x in v.lower() for x in url_genres)
+
+        if check:
+            print(above_average_df.iloc[i])
+            series_list.append(above_average_df.iloc[i])
+
+    if series_list is [] or series_list == []:
+        print('The combination of genres you are interested in could not be found in any books you have read previously. As a result, your recommendations will be based on your entire book history.')
+        return above_average_df
+
+    else:
+
+        filtered_user_df = pd.concat(series_list, axis=1).transpose()
+        return filtered_user_df
 
 
 
-
-def user_profile_filter(user_df):
-
-
-
-
-    return
 
 if __name__ == '__main__':
 
@@ -134,12 +129,5 @@ if __name__ == '__main__':
         database_dataframes.append(database_collection(database_response))
 
     print(database_dataframe_merge(database_dataframes))
-
-
-"""
-1) Merge the dataframes - function
-2) Set a limit to the number of dataframes getting merged, so we can test to see if the cosine scores still work - temp function edit
-"""
-
 
 

@@ -1,11 +1,8 @@
 import re
-
-import psutil
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 
 
     #Filtering needs to happen first to create the URL, which is used to create a response object that is then fed into this function to make a book database
@@ -75,28 +72,22 @@ def database_collection(response):
              'title' : titles,
              'author' : authors,
              'released' : released_dates,
-             #'avg_rating' : ratings,
              'subjects' : subjects,
-            #'ratings_counts' : ratings_counts
             }
 
         df = pd.DataFrame(all_books)
-        print(df)
+
         df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' '  + df['released'] + ' '  + df['subjects']
 
         df.drop(['subjects'], axis = 1)
-
-        print(psutil.virtual_memory())
-        # memory_usage = sum(df.memory_usage(deep = True))
-        # if memory_usage != 0:
-        #     print(memory_usage)
-
-
-
+        print('ctrl f tracker: done')
         return df
 
     else:
         print(f'An error has occurred collecting the book database: {response.status_code}')
+
+
+
 
 def user_data_collection(url):
 
@@ -205,13 +196,11 @@ def url_generator(url, links):
     return links
 
 
+
 if __name__ == '__main__':
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    # user_response = requests.get(url = 'https://www.goodreads.com/review/list/58617011-saeda?page=1&shelf=read&sort=date_added', headers = headers)
-    # user_data_collection(user_response)
-
 
     # These lines should go into the filtering file once proven to work
     database_response = requests.get(url = 'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit=500&language=eng',
@@ -229,20 +218,8 @@ if __name__ == '__main__':
     print(books_found)
 
 
-
-    # number_of_books = database_response.json()['numFound']
-    # limit_num = number_of_books
-    # new_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&limit={limit_num}&language=eng'
-    #
-    # new_database_response = requests.get(url = new_url, headers = headers)
-    #
-    # print(database_collection(new_database_response).to_string())
-
-
-
     pass
 
-#https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject=young+adult&language=eng
 
 
 
