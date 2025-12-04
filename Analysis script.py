@@ -1,6 +1,5 @@
 import math
-from Mainscript import database_collection, user_data_collection, url_generator
-from Filters import book_database_urls, database_dataframe_merge, user_profile_filter, dataframe_merging
+from Mainscript import database_collection, user_data_collection, url_generator, book_database_urls, database_dataframe_merge, user_profile_filter
 from multiprocessing import Pool
 import pandas as pd
 import re
@@ -9,9 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
 
-
-#function that performs some analysis using the user's book profile (above their average
-
+#Performs some analysis using the user's book profile and returns a dataframe containing only books they rated above average.
 def analysis(full_profile_df):
 
     print('Performing analysis...')
@@ -38,27 +35,30 @@ def analysis(full_profile_df):
     return above_average_df
 
 
-
-
-def cosine_score_computations(database_user_series):
+#Computes cosine score similarity between a detailed string of the user's filtered books against each individual book of the filtered book database. Returns a list of recommended books.
+def cosine_score_computations(user_and_database_combination):
 
     vectoriser = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = vectoriser.fit_transform(combined_book_series)
+    tfidf_matrix = vectoriser.fit_transform(user_and_database_combination)
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
+    #Converts the sim scores into an ordered list, with higher sim scores representing more highly recommended books.
     sim_list = list(enumerate(cosine_sim[-1]))
-    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)    #Sorts list based on the cosine sim score in reverse order (descending - higher cosine scores shown first)
+    sim_scores = sorted(sim_list, key=lambda x: x[1], reverse=True)
 
     recommended_book_list = []
 
     for book in sim_scores:
-        if book[1] < 0.999: #Condition is met provided the cosine sim score is less than 1 (ie: it's not the user profile string itself)
-            idx = book[0]   #index
+
+        #Condition ensures only books are shown and not the detailed user string.
+        if book[1] < 0.999:
+            idx = book[0]
             book_title = merged_dataframes.loc[idx]['title']
             year_released = merged_dataframes.loc[idx]['released']
             author = merged_dataframes.loc[idx]['author']
 
-            if not book_title in user_dataframe['title'].to_list()[:15]:
+            #Prevents recommending books that are already found in the user's reading history.
+            if not book_title in full_user_dataframe['title'].to_list()[:15]:
                 recommended_book_info = {
                     'Title' : book_title,
                     'Release year' : year_released,
@@ -70,9 +70,7 @@ def cosine_score_computations(database_user_series):
     return recommended_book_list
 
 
-
-#function that accepts a dataframe to perform some EDA with
-
+#Takes the user dataframe of books rated above average and returns a single, detailed string of their information. To be used for cosine similarity score computations.
 def user_profile_string(above_average_df):
 
     combined_book_data = (above_average_df['title'] + ' ' + above_average_df['author'] + ' ' + above_average_df['released'] + ' ' + above_average_df['subjects']).values.tolist()
@@ -83,6 +81,7 @@ def user_profile_string(above_average_df):
     return string_of_user_profile
 
 
+#A function used to make requests to a database url (API is prone to returning false information so this function call may be called multiple times in some cases).
 def books_request(database_url):
     header = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -97,9 +96,9 @@ def books_request(database_url):
 
 
 
-
 if __name__ == '__main__':
 
+    #Gathers user's book profile and genres of interest (which will be used to create recommendations).
     print('Please provide the url of your goodreads profile\'s first page.')
     first_page_url = input()
 
@@ -115,31 +114,40 @@ if __name__ == '__main__':
 
     genres_of_interest = '+'.join(search_genres)
 
+    #Creates a list containing each page of the user's profile, effectively containing their entire recorded book history on the website.
     links = [first_page_url]
     all_pages = url_generator(first_page_url, links)
 
     page_num = len(all_pages)
 
+    #Concurrently processes user book data, then creates a dataframe for each page of their profile.
     pool = Pool(processes=page_num)
     all_page_data = pool.map(user_data_collection, all_pages) # returns a list of dataframes
-    full_user_dataframe = dataframe_merging(all_page_data)
 
-    above_average_user_dataframe = analysis(full_user_dataframe) # performs user profile analysis
+    #These dataframes are subsequently merged.
+    full_user_dataframe = database_dataframe_merge(all_page_data)
 
+    #The user's book dataframe is filtered to only contain books with an above average rating.
+    above_average_user_dataframe = analysis(full_user_dataframe)
+
+    #The user's book dataframe is filtered to also only contain their genres of interest.
     genre_filtered_df = user_profile_filter(above_average_user_dataframe, search_genres)
 
+    #Returns a detailed string of the remaining books in the user's dataframe. This will be used to compute cosine similarity scores.
     user_combination = user_profile_string(genre_filtered_df)
 
+    #Returns a list of each database url that contains books of the user-specified genres.
     all_urls = book_database_urls(genres_of_interest)
 
 
     all_top_15_recommendations = []
 
-    all_database_dataframes = []    #dataframes from the database are stored here
+    all_database_dataframes = []
 
-    url_num = 1
+    url_num = 0
 
-    for url in all_urls:    #initial database request - checks if API is working
+    #Initial database url request.
+    for url in all_urls:
 
         print('Attempt 1...')
         database_response = books_request(url)
@@ -153,13 +161,23 @@ if __name__ == '__main__':
 
         url_num += 1
         number_of_books = database_response.json()['numFound']
+
+        #Progress display for book data extraction from database url list.
         database_extraction_progress = round(( (url_num / (number_of_books/1000)) * 100), 2)
+
+        #Avoid showing progress completion beyond 100%.
+        if database_extraction_progress > 100:
+            database_extraction_progress = 100
+
         print(f'Percentage of book data extracted from database: {database_extraction_progress}% ... \n')
 
-        database_dataframe = database_collection(database_response)  #upon a successful request, a dataframe is created and appended to an empty list
+        #Upon a successful request, a dataframe is created and appended to a list of dataframes.
+        database_dataframe = database_collection(database_response)
         all_database_dataframes.append(database_dataframe)
 
     print('Book data extraction from database is complete. \n')
+
+    #Calculates the number of loops to perform.
     num_of_dataframes = len(all_database_dataframes)
 
     if num_of_dataframes > 20:
@@ -169,6 +187,8 @@ if __name__ == '__main__':
         iterations = 1
 
     print('Computing cosine scores and making recommendations... \n')
+
+    #Precomputes the number of dataframes to merge at a time, where the maximum is 20 dataframes for any single merge.
     for num in range(iterations):
         if num == iterations - 1:
             endpoint = num_of_dataframes
@@ -177,14 +197,22 @@ if __name__ == '__main__':
             endpoint = (num + 1) * 20
 
 
-        merged_dataframes = database_dataframe_merge(all_database_dataframes[(num * 20) : endpoint])   #merges the created dataframes together in groups of 20 (for memory reasons)
-        merged_dataframes.loc[-1, 'combined_book_data'] = user_combination    #sets last value of the dataframe an index of -1, with the value as the user's filtered book profile
+        merged_dataframes = database_dataframe_merge(all_database_dataframes[(num * 20) : endpoint])
+
+        #Sets the last value of the dataframe to an index of -1, with the value being the detailed user string of filtered book information.
+        merged_dataframes.loc[-1, 'combined_book_data'] = user_combination
+
+        #Filters the dataframe, now containing both database and user book information, to only contain the column with combined book details as a string.
         combined_book_series = merged_dataframes['combined_book_data']
 
+        #Add the 15 books with the highest cosine sim scores to a list.
+        #Since only 15 books will be displayed to the user, there is no need to keep all 1000 books from each computation.
+        #Even if the highest 15 scores originated from a single dataframe, they would all still be captured and presented to the user.
         all_top_15_recommendations += cosine_score_computations(combined_book_series)
 
-
+    #Sorts the list and returns the final 15 highest cosine sim scoring books.
     final_top_15_books_sorted = sorted(all_top_15_recommendations, key = lambda x : x['Sim score'], reverse = True)[0:15]
 
+    #These 15 books are then displayed to the user.
     for final_book in final_top_15_books_sorted:
         print(f'Book title: {final_book['Title']} \n Year released: {final_book['Release year']} \n Author : {final_book['Author']} \n Sim score : {final_book['Sim score']} \n ------------------')

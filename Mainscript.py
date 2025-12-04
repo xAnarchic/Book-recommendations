@@ -3,10 +3,11 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 import sys
+import math
 
 
 
-    #Filtering needs to happen first to create the URL, which is used to create a response object that is then fed into this function to make a book database
+#Takes a successful response from a genre-filtered URL and creates a dataframe from it.
 def database_collection(response):
 
     if response.status_code == 200:
@@ -75,8 +76,10 @@ def database_collection(response):
 
         df = pd.DataFrame(all_books)
 
+        #Creates a column to compute cosine similarity scores from.
         df['combined_book_data'] = df['title'] + ' ' + df['author'] + ' '  + df['released'] + ' '  + df['subjects']
 
+        #Column no longer needed, neither in computations nor in display (as part of the recommendations output) for the user.
         df.drop(['subjects'], axis = 1)
 
         return df
@@ -86,14 +89,17 @@ def database_collection(response):
         sys.exit()
 
 
-
+#Takes the url of a user's goodreads profile and converts the books of that page into a dataframe.
 def user_data_collection(url):
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-
-    user_response = requests.get(url = url, headers = headers)
+    try:
+        user_response = requests.get(url = url, headers = headers)
+    except MemoryError:
+        print('A memory error has occurred whilst making a request to the database URL. The script will now end.')
+        sys.exit()
 
     if user_response.status_code == 200:
 
@@ -123,6 +129,7 @@ def user_data_collection(url):
             rating_tag = review.find('td', class_ = 'field rating')
             rating_text = rating_tag.find('span', attrs = {'class' : 'staticStars, ', 'class' : 'notranslate'}).get('title')
 
+            #Converts the 1 star-5 star rating system of books into a numeric 1-5 rating system.
             rating_text_vals = {
                 'it was amazing' : 5,
                 'really liked it' : 4,
@@ -174,6 +181,8 @@ def user_data_collection(url):
     else:
         print(f'An error occurred while trying to get this page\'s information: {url}')
 
+
+#A recursive function that returns a list of urls that collectively spans across every page of a user's goodreads profile (relating to their book history).
 def url_generator(url, links):
 
     try:
@@ -192,6 +201,100 @@ def url_generator(url, links):
         print('\n All review pages from the user have been retrieved. \n')
 
     return links
+
+
+#Returns a list of the urls which span across all the books inside the database with the "genres of interest".
+def book_database_urls(genres_of_interest):
+
+    #Makes the initial request to the base url.
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    base_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject={genres_of_interest}&limit=1&language=eng'
+
+    database_response = requests.get(
+        url=base_url,
+    headers=headers)
+
+    #Checks if any books were returned.
+    books_found = database_response.json()['numFound']
+
+    #If no books were returned, continue making requests until a valid response has been received.
+    n = 0
+    while books_found == 0:
+        n += 1
+        print(f'Count of requests to book database: {n}')
+        database_response = requests.get(
+            url=base_url,
+            headers=headers)
+
+        #If the number of requests has exceeded 50 attempts (including the initial request), terminate the script.
+        if n== 100:
+            sys.exit()
+        books_found = database_response.json()['numFound']
+
+    #Where a non-zero book count has been returned, and each url can return a maximum of 1000 books, calculate the number of urls that must be collected.
+    total_url_num = math.ceil(books_found/1000)
+
+    created_urls = []
+
+    #By changing the values of "limit" and "offset" in each iteration of the loop, construct these different urls and append them to the "created_urls" variable.
+    for iteration in range(total_url_num):
+        limit = 1000
+        url_num = iteration + 1
+
+        if url_num == 1:
+            offset = 0
+
+        elif url_num == total_url_num:
+            offset = math.floor(books_found/1000) * 1000
+
+        else:
+            offset = (url_num *1000) - 1000
+
+        #Construction of the URL.
+        main_url = f'https://openlibrary.org/search.json?fields=title,first_publish_year,author_name,ratings_average,ratings_count,subject&subject={genres_of_interest}&limit={limit}&offset={offset}&language=eng'
+
+        created_urls.append(main_url)
+
+    return created_urls
+
+
+#Merges the individual dataframes (made from each URL) together into a single, large dataframe.
+def database_dataframe_merge(dataframes):
+
+    if len(dataframes) > 1:
+        merged = dataframes[0].merge(dataframes[1], how='outer')
+        num = 1
+
+        while num < len(dataframes) - 1:
+            num += 1
+            merged = merged.merge(dataframes[num], how='outer')
+
+        return merged
+
+    else:
+        return dataframes[0]
+
+
+#Based on the genres the user is interested in, filter their book dataframe to only show books of those genres.
+def user_profile_filter(user_df, url_genres):
+
+    series_list = []
+
+    for i, v in enumerate(user_df['subjects']):
+        valid_book = all(x in v.lower() for x in url_genres)
+
+        if valid_book:
+            series_list.append(user_df.iloc[i])
+
+    if series_list is [] or series_list == []:
+        print('The combination of genres you are interested in could not be found in any books you have read previously. As a result, your recommendations will be based on your entire book history.')
+        return user_df
+
+    else:
+        filtered_user_df = pd.concat(series_list, axis=1).transpose()
+        return filtered_user_df
 
 
 
